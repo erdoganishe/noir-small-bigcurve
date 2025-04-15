@@ -110,6 +110,7 @@ pub fn curve_add(in1: [[Field; 2];2], in2: [[Field; 2];2]) -> [[Field; 2]; 2]{
 }
 
 pub fn curve_double(in1: [[Field; 2];2]) -> [[Field; 2]; 2]{
+    
     let x1: BigNum<2, 224, Secp224r1_Fq_Params> = BigNum {
         limbs: {
             in1[0]
@@ -180,6 +181,26 @@ pub fn curve_double(in1: [[Field; 2];2]) -> [[Field; 2]; 2]{
     [x3.limbs, y3.limbs]
 }
 
+pub fn curve_mult(in1: [[Field; 2];2], scalar: Field) -> [[Field; 2]; 2]{
+    let scalar_bits: [u1; 224]= scalar.to_be_bits::<224>();
+
+    let mut res = in1;
+    let mut found_first_bit= false;
+
+    for i in 0..224{
+        if (found_first_bit){
+            res = curve_double(res);
+            if (scalar_bits[i] as Field).eq(1){
+                res = curve_add(res, in1);
+            }
+        }
+        if ((scalar_bits[i] as Field).eq(1) & !found_first_bit){
+            found_first_bit = true;
+        }
+    }
+    res
+}
+
 #[test]
 fn test_add(){
     curve_add([[0x3c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],[0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd]], [[0x474788d16dc18032d268fd1a704fa6, 0x706a46dc76dcb76798e60e6d89],[0x892849fca629487acf3709d2e4e8bb, 0x1c2b76a7bc25e7702a704fa986]]);
@@ -188,5 +209,10 @@ fn test_add(){
 #[test]
 fn test_double(){
     curve_double([[0x3c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],[0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd]]);
+}
+
+#[test]
+fn test_mult(){
+    print(curve_mult([[0x3c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],[0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd]], 0x21695a86c5d1c5b572ec36da8bbe5818188492e672a64a0f09cb3f95));
 }
 

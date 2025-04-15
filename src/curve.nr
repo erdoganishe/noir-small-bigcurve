@@ -201,6 +201,66 @@ pub fn curve_mult(in1: [[Field; 2];2], scalar: Field) -> [[Field; 2]; 2]{
     res
 }
 
+pub fn curve_precompute_table(p1: [[Field; 2]; 2], p2: [[Field; 2]; 2]) -> [[[[Field; 2]; 2]; 4]; 4]{
+    let p1_double = curve_double(p1);
+    let p2_double = curve_double(p2);
+    let p1_triple = curve_add(p1, p1_double);
+    let p2_triple = curve_add(p2, p2_double);
+
+    let mut res: [[[[Field; 2]; 2]; 4]; 4] = [[[[0; 2]; 2]; 4]; 4];
+
+    res[0][1] = p2;
+    res[0][2] = p2_double;
+    res[0][3] = p2_triple;
+
+    res[1][0] = p1;
+    res[2][0] = p1_double;
+    res[3][0] = p1_triple;
+
+    res[2][2] = curve_add(p1_double, p2_double);
+    res[1][2] = curve_add(p1, p2_double);
+    res[1][1] = curve_add(p1, p2);
+    res[2][1] = curve_add(p1_double, p2);
+
+    res[3][1] = curve_add(p1_triple, p2);
+    res[3][2] = curve_add(p1_triple, p2_double);
+    res[3][3] = curve_add(p1_triple, p2_triple);
+    res[2][3] = curve_add(p1_double, p2_triple);
+    res[1][3] = curve_add(p1, p2_triple);
+
+    res
+}   
+
+pub fn get_val_from_table(table: [[[[Field; 2]; 2]; 4]; 4], x: u32, y: u32) -> [[Field; 2]; 2]{
+    table[x][y]
+}
+
+pub fn curve_two_mult(p1: [[Field; 2];2], p2: [[Field; 2];2], scalars:[Field; 2]) -> [[Field; 2]; 2]{
+    let table = curve_precompute_table(p1, p2);
+
+    let s1_bits = scalars[0].to_be_bits::<224>();
+    let s2_bits = scalars[1].to_be_bits::<224>();
+
+    let mut res = [[0; 2];2];
+    let mut found_first_bit = false;
+    for i in 0..112{
+
+        if (found_first_bit){
+            res = curve_double(curve_double(res));
+            if (!(s1_bits[2*i] as Field * 2 + s1_bits[2*i+1] as Field + s2_bits[2*i] as Field * 2 + s2_bits[2*i+1] as Field).eq(0)){
+                res = curve_add(res, get_val_from_table(table,(s1_bits[2*i] as u32 * 2 + s1_bits[2*i+1] as u32), (s2_bits[2*i] as u32 * 2 + s2_bits[2*i+1] as u32)));
+            }
+        }
+
+        if !(s1_bits[2*i] as Field * 2 + s1_bits[2*i+1] as Field + s2_bits[2*i] as Field * 2 + s2_bits[2*i+1] as Field).eq(0) & !found_first_bit {
+            found_first_bit = true;
+            res = get_val_from_table(table, (s1_bits[2*i] as u32 * 2 + s1_bits[2*i+1] as u32), (s2_bits[2*i] as u32 * 2 + s2_bits[2*i+1] as u32));
+        }
+    }
+
+    res
+}   
+
 #[test]
 fn test_add(){
     curve_add([[0x3c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],[0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd]], [[0x474788d16dc18032d268fd1a704fa6, 0x706a46dc76dcb76798e60e6d89],[0x892849fca629487acf3709d2e4e8bb, 0x1c2b76a7bc25e7702a704fa986]]);
@@ -216,3 +276,12 @@ fn test_mult(){
     print(curve_mult([[0x3c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],[0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd]], 0x21695a86c5d1c5b572ec36da8bbe5818188492e672a64a0f09cb3f95));
 }
 
+#[test]
+fn test_2_mult(){
+    print(
+        curve_two_mult(
+            [[0x3c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],[0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd]], 
+            [[0xcb2bba8f6e37e45621789743cd6633, 0x25a4b8ef0ae112d28aa95742d5],[0x8713800a75730121b92a8740249441, 0x9acf510689f8654b9e1866ae24]],
+            [0x21695a86c5d1c5b572ec36da8bbe5818188492e672a64a0f09cb3f95, 0x9cdf6edcbed49fd11fdfe5b3eeea9b1b472d50625919db29c85c5751]
+    ));
+}

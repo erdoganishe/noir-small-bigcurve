@@ -1,6 +1,7 @@
 use curve::{curve_two_mult, get_val_from_table, curve_add, curve_double, curve_mult, ecdsa_ver};
 
 pub mod curve;
+pub mod curve_192;
 
 fn main(
     sig: [[Field; 2]; 2],  pk: [[Field; 2]; 2], hashed: [u8; 28]

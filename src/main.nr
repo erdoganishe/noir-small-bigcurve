@@ -1,5 +1,6 @@
-use curve::{curve_two_mult, get_val_from_table, curve_add, curve_double, curve_mult, ecdsa_ver};
+// use curve::{curve_two_mult, get_val_from_table, curve_add, curve_double, curve_mult, ecdsa_ver};
 
+pub mod bignum;
 pub mod curve;
 pub mod curve_192;
 
@@ -21,6 +22,6 @@ fn main(
 
     // curve_two_mult(in1, in2, scalars)
 
-    ecdsa_ver(sig, pk, hashed);
+    // ecdsa_ver(sig, pk, hashed);
 
 }

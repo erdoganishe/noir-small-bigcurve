@@ -1,4 +1,4 @@
-use bignum::{BigNum, params::{BigNumParams, BigNumParamsGetter}};
+use super::bignum::{BigNum, params::{BigNumParams, BigNumParamsGetter}};
 
 
 global TWO_POWER_120: Field = 1329227995784915872903807060280344576;

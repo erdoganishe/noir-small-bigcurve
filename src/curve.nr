@@ -1,4 +1,9 @@
 use bignum::{BigNum, params::{BigNumParams, BigNumParamsGetter}};
+use std::hash;
+
+global TWO_POWER_120: Field = 1329227995784915872903807060280344576;
+
+global SECP224R1_GENERATOR: [[Field; 2]; 2] = [[0x3c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],[0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd]];
 
 global Secp224r1_Fq_PARAMS: BigNumParams<2, 224> = BigNumParams::new(
     true,
@@ -13,6 +18,21 @@ impl BigNumParamsGetter<2, 224> for Secp224r1_Fq_Params {
         Secp224r1_Fq_PARAMS
     }
 }
+
+pub struct Secp224r1_Fr_Params {}
+
+impl BigNumParamsGetter<2, 224> for Secp224r1_Fr_Params {
+    fn get_params() -> BigNumParams<2, 224> {
+        Secp224r1_Fr_PARAMS
+    }
+}
+
+global Secp224r1_Fr_PARAMS: BigNumParams<2, 224> = BigNumParams::new(
+    true,
+    [0xff16a2e0b8f03e13dd29455c5c2a3d, 0xffffffffffffffffffffffffff], 
+    [0xe95d1f470fc1ec22d6baa3a3d5c3d, 0x1000000000000000000000000000]
+);
+
 
 global a: BigNum<2, 224, Secp224r1_Fq_Params> = BigNum {
     limbs: [0xfffffefffffffffffffffffffffffe, 0xffffffffffffffffffffffffff]
@@ -261,6 +281,36 @@ pub fn curve_two_mult(p1: [[Field; 2];2], p2: [[Field; 2];2], scalars:[Field; 2]
     res
 }   
 
+pub fn ecdsa_ver(sig: [[Field; 2]; 2], pk: [[Field; 2]; 2], hashed: [u8; 28]) {
+
+    let h: BigNum<2, 224, Secp224r1_Fr_Params> = BigNum::from_be_bytes::<28>(hashed);
+
+    let r: BigNum<2, 224, Secp224r1_Fr_Params> = BigNum{
+        limbs: sig[0]
+    };
+
+    let s: BigNum<2, 224, Secp224r1_Fr_Params> = BigNum{
+        limbs: sig[1]
+    };
+
+    let s_inv = s.__invmod();
+    assert(s_inv.mul(s) == BigNum::one(), "");
+
+    let hs = s_inv.mul(h);
+    let rs = s_inv.mul(r);
+
+    let mut scalars = [0; 2];
+    scalars[0] = hs.limbs[0] + hs.limbs[1] * TWO_POWER_120;
+    scalars[1] = rs.limbs[0] + rs.limbs[1] * TWO_POWER_120;
+
+    let r_point = curve_two_mult(SECP224R1_GENERATOR, pk, scalars);
+
+    assert(r_point[0][0] == sig[0][0], "");
+    assert(r_point[0][1] == sig[0][1], "");
+
+}   
+
+
 #[test]
 fn test_add(){
     curve_add([[0x3c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],[0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd]], [[0x474788d16dc18032d268fd1a704fa6, 0x706a46dc76dcb76798e60e6d89],[0x892849fca629487acf3709d2e4e8bb, 0x1c2b76a7bc25e7702a704fa986]]);
@@ -284,4 +334,19 @@ fn test_2_mult(){
             [[0xcb2bba8f6e37e45621789743cd6633, 0x25a4b8ef0ae112d28aa95742d5],[0x8713800a75730121b92a8740249441, 0x9acf510689f8654b9e1866ae24]],
             [0x21695a86c5d1c5b572ec36da8bbe5818188492e672a64a0f09cb3f95, 0x9cdf6edcbed49fd11fdfe5b3eeea9b1b472d50625919db29c85c5751]
     ));
+}
+
+#[test]
+fn test_ecdsa(){
+    ecdsa_ver(
+    [
+            [0xa02f538fd0064120faa824002101db, 0x4c4d8999f5936d9123b194444b],
+            [0x5822aaab85c653b663f2eea4c2d6e5, 0x6c5214f7ea4b12df4fdfdea37]
+        ],
+    [
+            [722371281012593104244619201166496731, 8945567368764448446025875086533],
+            [349435418845284657361889125617340902, 7867863669378148314177957488491]
+        ],
+[177, 28, 121, 26, 76, 57, 86, 171, 94, 117, 165, 108, 210, 252, 245, 238, 118, 238, 75, 9, 79, 14, 196, 133, 173, 87, 243, 102]
+    );
 }
